@@ -1,0 +1,299 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Treasury Agents Interface - Benin Government Design System */
+
+@layer base {
+  :root {
+    /* Benin Flag-Inspired Colors */
+    --benin-green: 153 100% 27%;
+    --benin-yellow: 47 97% 54%;
+    --benin-red: 355 83% 49%;
+    
+    /* Core palette */
+    --background: 210 20% 98%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 153 100% 27%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 95%;
+    --secondary-foreground: 220 20% 20%;
+
+    --muted: 210 15% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 47 97% 54%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 355 83% 49%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 153 100% 27%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 47 97% 54%;
+    --warning-foreground: 220 20% 10%;
+
+    /* Alert severity colors */
+    --alert-critical: 355 83% 49%;
+    --alert-critical-foreground: 0 0% 100%;
+    --alert-urgent: 25 95% 53%;
+    --alert-urgent-foreground: 0 0% 100%;
+    --alert-warning: 45 93% 47%;
+    --alert-warning-foreground: 220 20% 10%;
+    --alert-info: 210 15% 60%;
+    --alert-info-foreground: 220 20% 10%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 153 100% 27%;
+
+    --radius: 0.625rem;
+
+    /* Sidebar - Two-tone green design */
+    --sidebar-background: 153 100% 15%;
+    --sidebar-background-lighter: 153 80% 20%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 47 97% 54%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 153 80% 28%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 153 60% 25%;
+    --sidebar-ring: 47 97% 54%;
+    --sidebar-active-indicator: 47 97% 54%;
+
+    /* Custom shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  }
+
+  .dark {
+    --background: 220 20% 8%;
+    --foreground: 210 20% 98%;
+
+    --card: 220 20% 12%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 220 20% 12%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 153 80% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 220 15% 20%;
+    --muted-foreground: 215 15% 60%;
+
+    --accent: 47 90% 50%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 355 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Alert severity colors - dark mode */
+    --alert-critical: 355 75% 55%;
+    --alert-critical-foreground: 0 0% 100%;
+    --alert-urgent: 25 90% 55%;
+    --alert-urgent-foreground: 0 0% 100%;
+    --alert-warning: 45 90% 50%;
+    --alert-warning-foreground: 220 20% 10%;
+    --alert-info: 215 15% 55%;
+    --alert-info-foreground: 210 20% 95%;
+
+    --border: 220 15% 22%;
+    --input: 220 15% 22%;
+    --ring: 153 80% 40%;
+
+    --sidebar-background: 220 20% 8%;
+    --sidebar-background-lighter: 220 18% 12%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 47 90% 50%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 220 15% 18%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 47 90% 50%;
+    --sidebar-active-indicator: 47 90% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', 'Roboto', 'Open Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* KPI Card Styles */
+  .kpi-card {
+    @apply bg-card rounded-xl p-6 shadow-card border border-border/50 transition-all duration-300;
+  }
+
+  .kpi-card:hover {
+    @apply shadow-lg -translate-y-0.5;
+  }
+
+  .kpi-value {
+    @apply text-3xl font-bold text-foreground;
+  }
+
+  .kpi-label {
+    @apply text-sm font-medium text-muted-foreground mt-1;
+  }
+
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-success {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .status-warning {
+    @apply bg-accent/20 text-accent-foreground;
+  }
+
+  .status-error {
+    @apply bg-destructive/10 text-destructive;
+  }
+
+  .status-pending {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Government banner */
+  .gov-banner {
+    @apply bg-gradient-to-r from-primary via-primary/95 to-primary rounded-xl p-6 text-primary-foreground;
+  }
+
+  /* Data table styles */
+  .data-table {
+    @apply w-full border-collapse;
+  }
+
+  .data-table th {
+    @apply text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-3 px-4 bg-muted/50;
+  }
+
+  .data-table td {
+    @apply py-3 px-4 text-sm border-b border-border/50;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-muted/30;
+  }
+
+  /* Action button group */
+  .action-btn {
+    @apply inline-flex items-center justify-center h-8 w-8 rounded-lg transition-colors;
+  }
+
+  .action-btn:hover {
+    @apply bg-muted;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply h-2 bg-muted rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-primary rounded-full transition-all duration-500 ease-out;
+  }
+
+  /* Sidebar active state */
+  .sidebar-item-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-medium;
+  }
+}
+
+@layer utilities {
+  /* Smooth scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+
+  /* Count up animation */
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-count-up {
+    animation: countUp 0.4s ease-out;
+  }
+}
