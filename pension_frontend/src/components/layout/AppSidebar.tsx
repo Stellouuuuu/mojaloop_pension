@@ -74,6 +74,7 @@ const navItems: NavItem[] = [
     isProcessing: true, // Mock: payments in progress
     children: [
       { title: "Nouveau Lot", href: "/payments", icon: Banknote },
+      { title: "Historique Lot", href: "/lot/history", icon: FileText },
       { title: "Historique Transactions", href: "/payments/history", icon: History },
     ],
   },

@@ -9,7 +9,9 @@ import Pensioners from "./pages/Pensioners";
 import PensionersHistory from "./pages/PensionersHistory";
 import PensionerProfile from "./pages/PensionerProfile";
 import Payments from "./pages/Payments";
+import History from "./pages/History";
 import Reports from "./pages/Reports";
+import PaymentsHistory from './pages/Lot.tsx';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pensioners" element={<Pensioners />} />
+            <Route path="/payments/history" element={<History />} />
+            <Route path="/lot/history" element={<PaymentsHistory />} />  
             <Route path="/pensioners/history" element={<PensionersHistory />} />
             <Route path="/pensioners/:id" element={<PensionerProfile />} />
             <Route path="/payments" element={<Payments />} />
