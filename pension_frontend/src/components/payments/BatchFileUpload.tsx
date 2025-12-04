@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
-
+import generatePDF from "../layout/generatePDF";
 // --- Configuration API ---
 const PAYMENT_API_BASE_URL = "http://192.168.1.108:3001";
-const PAYMENT_API_ENDPOINT = "/api/payments/batch";
+const PAYMENT_API_ENDPOINT = "/payments/batch";
 
 // --- Définitions de types pour l'API ---
 interface PaymentParty {
@@ -141,27 +141,131 @@ const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
  * Fonction simulée pour appeler l'API de paiement
  * @param paymentData L'objet de données de paiement
  * @returns Le résultat de l'opération
+ * 
+ * 
  */
-const simulateBatchPaymentAPI = async (paymentData: PaymentRequest): Promise<PaymentResponse> => {
+async function generateAndDownloadReceipt(result: any) {
+    const endpoint = "http://127.0.0.1:5000/generate_receipt";
+
+    // --- 1. Préparation des données pour l'API Flask ---
+    
+    // Le contrôleur Flask attend une structure { success: true, data: { ... transaction data ... } }.
+    // Le contrôleur Flask attend également des champs de nom complets dans 'from' et 'to'.
+
+    const transactionId = result.homeTransactionId || result.transactionId || 'no-id';
+    
+    // Assurez-vous que les données existent dans le 'result' de la première API
+    const paymentData = result.data || result; // Utilisez 'data' si l'API l'encapsule, sinon utilisez le résultat direct
+    
+    if (!paymentData || paymentData.success === false) {
+        console.warn("Impossible de générer le reçu : données de transaction invalides ou échec.");
+        return;
+    }
+
+    // Reconstruction de la partie 'from' pour assurer la présence de la clé 'name'
+    const senderDataForPDF = {
+        name: paymentData.from.displayName || paymentData.from.name || "Expéditeur Inconnu",
+        idType: paymentData.from.idType,
+        idValue: paymentData.from.idValue,
+    };
+
+    // Reconstruction de la partie 'to' pour assurer la présence de firstName/lastName
+    const receiverDataForPDF = {
+        firstName: paymentData.to.firstName || paymentData.to.name || "Bénéficiaire", 
+        middleName: paymentData.to.middleName || "", 
+        lastName: paymentData.to.lastName || "",
+        idType: paymentData.to.idType,
+        idValue: paymentData.to.idValue,
+    };
+    
+    // Construction de l'objet final que Flask attend
+    const apiResponseToSend = {
+        success: true,
+        data: {
+            homeTransactionId: transactionId,
+            currentState: "COMPLETED", 
+            initiatedTimestamp: paymentData.initiatedTimestamp || new Date().toISOString(),
+            completedTimestamp: paymentData.completedTimestamp || new Date().toISOString(),
+            
+            from: senderDataForPDF,
+            to: receiverDataForPDF,
+            amount: paymentData.amount || paymentData.montant,
+            currency: paymentData.currency || paymentData.devise,
+            note: paymentData.note || null,
+        }
+    };
+    
+    // --- 2. Requête POST vers l'API Flask ---
 
     try {
-      const response = await fetch(`${PAYMENT_API_BASE_URL}${PAYMENT_API_ENDPOINT}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData),
-      });
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            // Envoi de l'objet préparé
+            body: JSON.stringify(apiResponseToSend) 
+        });
 
-      if (!response.ok) {
-        throw new Error('Erreur réseau');
-      }
+        // 3. Vérification de la réponse HTTP
+        if (!response.ok) {
+            const errorText = await response.json().catch(() => response.text());
+            throw new Error(`Erreur HTTP ${response.status}: ${JSON.stringify(errorText)}`);
+        }
 
-      const result = await response.json();
-      return result;
+        // 4. Récupération des informations sur le fichier
+        let filename = `recu_transaction_${transactionId}.pdf`; 
+        const disposition = response.headers.get('Content-Disposition');
+        if (disposition && disposition.indexOf('attachment') !== -1) {
+            const filenameMatch = disposition.match(/filename="(.+)"/i);
+            if (filenameMatch && filenameMatch.length > 1) {
+                filename = filenameMatch[1];
+            }
+        }
+
+        // 5. Téléchargement
+        const pdfBlob = await response.blob();
+        const url = window.URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        console.log(`✅ Fichier PDF téléchargé avec succès : ${filename}`);
 
     } catch (error) {
-      return { success: false, transactionId: '', message: error.message || "Erreur de la couche réseau", errorCode: "NETWORK_ERROR" };
+        console.error("❌ Échec de la génération ou du téléchargement du PDF :", error);
+        alert(`Impossible de générer le reçu. Détails : ${error.message}`);
+    }
+}
+const simulateBatchPaymentAPI = async (paymentData: any): Promise<any> => {
+    
+    try {
+        const response = await fetch(`${PAYMENT_API_BASE_URL}${PAYMENT_API_ENDPOINT}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paymentData),
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur réseau');
+        }
+
+        const result = await response.json();
+        
+        // Appel de la fonction définie à l'extérieur
+        generateAndDownloadReceipt(result); 
+        
+        return result;
+
+    } catch (error) {
+        return { success: false, transactionId: '', message: error.message || "Erreur de la couche réseau", errorCode: "NETWORK_ERROR" };
     }
     
 };
