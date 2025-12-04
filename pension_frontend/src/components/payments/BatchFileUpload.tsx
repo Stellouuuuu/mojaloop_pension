@@ -143,25 +143,7 @@ const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
  * @returns Le résultat de l'opération
  */
 const simulateBatchPaymentAPI = async (paymentData: PaymentRequest): Promise<PaymentResponse> => {
-  // Simuler la logique de l'API ici
-  const transactionId = `T-REF-${Date.now()}-${Math.floor(Math.random() * 900) + 100}`;
-  
-  // Simulation de la réussite (90% de succès) ou de l'échec pour certaines conditions
-  const isSuccess = Math.random() < 0.9 && paymentData.montant !== "5000"; // Exemple: échec si montant = 5000
-  
-  if (isSuccess) {
-    return {
-      success: true,
-      transactionId,
-      message: `Paiement exécuté. Réf: ${transactionId}`,
-    };
-  } else {
-    // Simuler différentes erreurs
-    const errorCode = paymentData.montant === "5000" ? "INSUFFICIENT_FUNDS" : "API_TIMEOUT";
-    const message = paymentData.montant === "5000" ? "Fonds insuffisants ou limite dépassée." : "Erreur de connexion ou timeout API.";
 
-    // Envoyer à l'API réelle
-    
     try {
       const response = await fetch(`${PAYMENT_API_BASE_URL}${PAYMENT_API_ENDPOINT}`, {
         method: 'POST',
@@ -182,14 +164,6 @@ const simulateBatchPaymentAPI = async (paymentData: PaymentRequest): Promise<Pay
       return { success: false, transactionId: '', message: error.message || "Erreur de la couche réseau", errorCode: "NETWORK_ERROR" };
     }
     
-    // Retour simulé pour l'échec
-    return {
-      success: false,
-      transactionId: '',
-      message: message,
-      errorCode: errorCode,
-    };
-  }
 };
 
 

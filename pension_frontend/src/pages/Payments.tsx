@@ -133,7 +133,7 @@ export default function Payments() {
             <h2 className="text-xl font-semibold">Importer un nouveau lot de paiement</h2>
             <p className="text-muted-foreground mt-2">Fichier CSV ou Excel requis</p>
           </div>
-          <BatchFileUpload onUpload={handleFileUploaded} />
+          <BatchFileUpload onUpload={handleFileUploaded as any} />
         </div>
       )}
 
