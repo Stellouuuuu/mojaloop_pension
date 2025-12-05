@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -19,6 +19,7 @@ import {
   PauseCircle,
   Bell,
   X,
+  Loader2, // Ajout pour l'état de chargement
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,118 +56,40 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-interface Pensioner {
-  id: string;
-  uniqueId: string;
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  age: number;
-  amount: number;
-  paymentMethod: "mobile" | "bank";
-  paymentDetails: string;
-  status: "approved" | "pending" | "rejected";
-  createdAt: string;
-  pendingSince?: number; // days since pending
-  hasDisability?: boolean;
+// --- NOUVELLES INTERFACES POUR L'API ---
+
+// Interface pour un participant de l'API
+interface ApiParticipant {
+  null: [string, string, string, string, string]; // [type_id, valeur_id, devise, montant, nom_complet]
+  status: 'valide' | 'erreur' | 'en_cours'; // Statut de paiement simulé
+  receipt: string | null;
 }
 
-const mockPensioners: Pensioner[] = [
-  {
-    id: "1",
-    uniqueId: "BN-2024-00145",
-    firstName: "Kokou",
-    lastName: "Mensah",
-    birthDate: "1958-03-15",
-    age: 66,
-    amount: 85000,
-    paymentMethod: "mobile",
-    paymentDetails: "+229 97 00 00 01",
-    status: "approved",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    uniqueId: "BN-2024-00892",
-    firstName: "Adjovi",
-    lastName: "Dossou",
-    birthDate: "1960-07-22",
-    age: 64,
-    amount: 120000,
-    paymentMethod: "bank",
-    paymentDetails: "BJ02 0001 0101 0000 0000 0123",
-    status: "approved",
-    createdAt: "2024-02-10",
-  },
-  {
-    id: "3",
-    uniqueId: "BN-2024-01234",
-    firstName: "Akpaki",
-    lastName: "Houessou",
-    birthDate: "1962-11-08",
-    age: 62,
-    amount: 95000,
-    paymentMethod: "mobile",
-    paymentDetails: "+229 96 00 00 02",
-    status: "pending",
-    createdAt: "2024-03-05",
-    pendingSince: 15,
-  },
-  {
-    id: "4",
-    uniqueId: "BN-2024-00567",
-    firstName: "Sossou",
-    lastName: "Agbangla",
-    birthDate: "1955-05-30",
-    age: 69,
-    amount: 75000,
-    paymentMethod: "mobile",
-    paymentDetails: "+229 97 00 00 03",
-    status: "approved",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: "5",
-    uniqueId: "BN-2024-02345",
-    firstName: "Yawa",
-    lastName: "Tokpanou",
-    birthDate: "1959-09-12",
-    age: 65,
-    amount: 110000,
-    paymentMethod: "bank",
-    paymentDetails: "BJ02 0002 0202 0000 0000 0456",
-    status: "rejected",
-    createdAt: "2024-03-12",
-  },
-  {
-    id: "6",
-    uniqueId: "BN-2024-03456",
-    firstName: "Kodjo",
-    lastName: "Amoussou",
-    birthDate: "1950-02-18",
-    age: 74,
-    amount: 95000,
-    paymentMethod: "bank",
-    paymentDetails: "BJ02 0003 0303 0000 0000 0789",
-    status: "approved",
-    createdAt: "2024-01-08",
-    hasDisability: true,
-  },
-  {
-    id: "7",
-    uniqueId: "BN-2024-04567",
-    firstName: "Afi",
-    lastName: "Gbaguidi",
-    birthDate: "1948-06-25",
-    age: 76,
-    amount: 105000,
-    paymentMethod: "mobile",
-    paymentDetails: "+229 95 00 00 04",
-    status: "pending",
-    createdAt: "2024-03-01",
-    pendingSince: 8,
-  },
-];
+// Interface pour la réponse complète de l'API
+interface ApiBatchResponse {
+  batchId: string;
+  date: string;
+  participants: ApiParticipant[];
+  summary_pdf: string | null;
+}
+
+// --- INTERFACE PENSIONER MISE À JOUR (Utilisée pour la vue) ---
+
+interface Pensioner {
+  id: string; // Utilisé comme clé, sera l'index + 1
+  uniqueId: string; // type_id + valeur_id
+  firstName: string;
+  lastName: string;
+  birthDate: string; // Simulé
+  age: number; // Simulé
+  amount: number;
+  paymentMethod: "mobile" | "bank"; // Simulé
+  paymentDetails: string; // valeur_id
+  status: "approved" | "pending" | "rejected"; // Mappé depuis 'valide', 'en_cours', 'erreur'
+  createdAt: string; // Simulé
+  pendingSince?: number;
+  hasDisability?: boolean; // Simulé
+}
 
 const statusConfig = {
   approved: {
@@ -195,6 +118,44 @@ interface ActiveFilter {
   label: string;
 }
 
+// Fonction de simulation pour mapper les données de l'API à l'interface Pensioner
+const mapApiToPensioner = (participant: ApiParticipant, index: number): Pensioner => {
+    const [type_id, valeur_id, , montantStr, nom_complet] = participant.null;
+    const [firstName = 'N/A', lastName = 'N/A'] = nom_complet.split(' ').filter(Boolean); // Tentative de séparer nom/prénom
+
+    // Mapping du statut
+    let status: Pensioner['status'];
+    if (participant.status === 'valide') {
+        status = 'approved';
+    } else if (participant.status === 'en_cours') {
+        status = 'pending';
+    } else {
+        status = 'rejected';
+    }
+
+    // Simulation de données manquantes pour le fonctionnement de la table/filtres
+    const isMobile = valeur_id.startsWith('+229') || valeur_id.length === 8;
+    const amount = parseInt(montantStr, 10);
+    const age = 60 + (index % 16); // Simulation d'âge entre 60 et 75
+    const birthYear = new Date().getFullYear() - age;
+
+    return {
+        id: (index + 1).toString(),
+        uniqueId: `${type_id}-${valeur_id}`,
+        firstName,
+        lastName,
+        birthDate: `${birthYear}-01-01`, // Simulé
+        age: age,
+        amount: isNaN(amount) ? 0 : amount,
+        paymentMethod: isMobile ? "mobile" : "bank", // Simulé
+        paymentDetails: valeur_id,
+        status: status,
+        createdAt: "2024-01-01", // Simulé
+        pendingSince: status === 'pending' ? (index % 10) + 1 : undefined, // Simulé
+        hasDisability: index === 5 || index === 8, // Simulé
+    };
+};
+
 export default function Pensioners() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
@@ -204,15 +165,57 @@ export default function Pensioners() {
   const [selectedPensioner, setSelectedPensioner] = useState<Pensioner | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"mobile" | "bank">("mobile");
 
+  // --- NOUVEAUX ÉTATS POUR LA CHARGEMENT DYNAMIQUE ---
+  const [pensionersData, setPensionersData] = useState<Pensioner[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fonction pour charger les données de l'API
+  const fetchPensioners = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // L'API renvoie un tableau de réponses de lot, mais nous prenons le premier lot
+      const response = await fetch("http://127.0.0.1:5000/api/pensioners"); 
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const apiData: ApiBatchResponse[] = await response.json();
+
+      if (apiData.length === 0 || !apiData[0].participants) {
+        throw new Error("Format de données invalide: 'participants' manquant.");
+      }
+
+      // Mapper les données API au format Pensioner
+      const mappedPensioners = apiData[0].participants.map(mapApiToPensioner);
+      console.log(mappedPensioners);
+
+      setPensionersData(mappedPensioners);
+      
+    } catch (err) {
+      console.error("Erreur de chargement des données des pensionnés:", err);
+      setError("Impossible de charger les données. Veuillez vérifier la connexion à l'API locale.");
+      // Optionnel: revenir aux données mockées en cas d'échec pour le développement
+      // setPensionersData(mockPensioners); 
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    fetchPensioners();
+  }, [fetchPensioners]);
+  // ---------------------------------------------------
+
   const filterTags = [
-    // Status filters
+    // ... (Reste inchangé)
     { type: "status" as FilterType, value: "approved", label: "Approuvé", icon: CheckCircle, className: "bg-primary/10 text-primary hover:bg-primary/20 border-primary/20" },
     { type: "status" as FilterType, value: "pending", label: "En attente", icon: Clock, className: "bg-alert-warning/10 text-alert-warning hover:bg-alert-warning/20 border-alert-warning/20" },
     { type: "status" as FilterType, value: "rejected", label: "Rejeté", icon: XCircle, className: "bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20" },
-    // Payment method filters
     { type: "payment" as FilterType, value: "mobile", label: "Mobile Money", icon: Smartphone, className: "bg-secondary text-secondary-foreground hover:bg-secondary/80 border-secondary" },
     { type: "payment" as FilterType, value: "bank", label: "Banque", icon: Building2, className: "bg-secondary text-secondary-foreground hover:bg-secondary/80 border-secondary" },
-    // Age filters
     { type: "age" as FilterType, value: "senior", label: "> 70 ans", icon: UserRound, className: "bg-alert-urgent/10 text-alert-urgent hover:bg-alert-urgent/20 border-alert-urgent/20" },
     { type: "age" as FilterType, value: "young", label: "< 65 ans", icon: UserRound, className: "bg-muted text-muted-foreground hover:bg-muted/80 border-muted" },
   ];
@@ -222,7 +225,6 @@ export default function Pensioners() {
     if (exists) {
       setActiveFilters(activeFilters.filter(f => !(f.type === filter.type && f.value === filter.value)));
     } else {
-      // Remove other filters of the same type before adding
       const filtered = activeFilters.filter(f => f.type !== filter.type);
       setActiveFilters([...filtered, { type: filter.type, value: filter.value, label: filter.label }]);
     }
@@ -233,26 +235,29 @@ export default function Pensioners() {
   const isFilterActive = (type: FilterType, value: FilterValue) => 
     activeFilters.some(f => f.type === type && f.value === value);
 
-  const filteredPensioners = mockPensioners.filter((p) => {
-    const matchesSearch =
-      p.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.uniqueId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Check all active filters
-    const statusFilter = activeFilters.find(f => f.type === "status");
-    const paymentFilter = activeFilters.find(f => f.type === "payment");
-    const ageFilter = activeFilters.find(f => f.type === "age");
+  // Utilisation de useMemo pour filtrer les données
+  const filteredPensioners = useMemo(() => {
+    return pensionersData.filter((p) => {
+      const matchesSearch =
+        p.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.uniqueId.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const statusFilter = activeFilters.find(f => f.type === "status");
+      const paymentFilter = activeFilters.find(f => f.type === "payment");
+      const ageFilter = activeFilters.find(f => f.type === "age");
 
-    const matchesStatus = !statusFilter || p.status === statusFilter.value;
-    const matchesPayment = !paymentFilter || p.paymentMethod === paymentFilter.value;
-    const matchesAge = !ageFilter || 
-      (ageFilter.value === "senior" && p.age > 70) ||
-      (ageFilter.value === "young" && p.age < 65);
+      const matchesStatus = !statusFilter || p.status === statusFilter.value;
+      const matchesPayment = !paymentFilter || p.paymentMethod === paymentFilter.value;
+      const matchesAge = !ageFilter || 
+        (ageFilter.value === "senior" && p.age > 70) ||
+        (ageFilter.value === "young" && p.age < 65);
 
-    return matchesSearch && matchesStatus && matchesPayment && matchesAge;
-  });
+      return matchesSearch && matchesStatus && matchesPayment && matchesAge;
+    });
+  }, [pensionersData, searchTerm, activeFilters]);
 
+  // ... (Reste des fonctions de gestion inchangé)
   const handleViewProfile = (pensioner: Pensioner) => {
     window.location.href = `/pensioners/${pensioner.id}`;
   };
@@ -287,6 +292,7 @@ export default function Pensioners() {
   };
 
   const saveQuickEdit = () => {
+    // Logique de sauvegarde API ici
     toast({
       title: "Modifications enregistrées",
       description: "Les informations ont été mises à jour avec succès.",
@@ -302,8 +308,12 @@ export default function Pensioners() {
   const needsSpecialAttention = (pensioner: Pensioner) => 
     pensioner.age > 70 || pensioner.hasDisability;
 
+
+  // --- Rendu du composant ---
+
   return (
     <div className="space-y-6 animate-fade-in">
+      
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -388,181 +398,203 @@ export default function Pensioners() {
         </div>
       </div>
 
-      {/* Pensioners Table */}
+      {/* Affichage des Données (Chargement/Erreur/Tableau) */}
       <div className="bg-card rounded-xl border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID Unique</th>
-                <th>Bénéficiaire</th>
-                <th>Âge</th>
-                <th>Montant</th>
-                <th>Méthode</th>
-                <th>Statut</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPensioners.map((pensioner) => {
-                const status = statusConfig[pensioner.status];
-                const StatusIcon = status.icon;
-                return (
-                  <tr key={pensioner.id}>
-                    <td className="font-mono text-sm text-muted-foreground">
-                      {pensioner.uniqueId}
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-medium text-foreground">
-                              {pensioner.firstName} {pensioner.lastName}
+        {isLoading && (
+          <div className="p-8 flex justify-center items-center">
+            <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
+            <p className="text-muted-foreground">Chargement des pensionnés...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-8 text-center text-destructive">
+            <XCircle className="w-6 h-6 mx-auto mb-2" />
+            <p className="font-semibold">Erreur de chargement des données</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
+        {!isLoading && !error && filteredPensioners.length === 0 && (
+          <div className="p-8 text-center text-muted-foreground">
+            <Search className="w-6 h-6 mx-auto mb-2" />
+            <p>Aucun pensionné trouvé avec les critères actuels.</p>
+          </div>
+        )}
+
+        {!isLoading && !error && filteredPensioners.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID Unique</th>
+                  <th>Bénéficiaire</th>
+                  <th>Âge</th>
+                  <th>Montant</th>
+                  <th>Méthode</th>
+                  <th>Statut</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPensioners.map((pensioner) => {
+                  const status = statusConfig[pensioner.status];
+                  const StatusIcon = status.icon;
+                  return (
+                    <tr key={pensioner.id}>
+                      <td className="font-mono text-sm text-muted-foreground">
+                        {pensioner.uniqueId}
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-foreground">
+                                {pensioner.firstName} {pensioner.lastName}
+                              </p>
+                              {/* Visual indicators */}
+                              {isPendingTooLong(pensioner) && (
+                                <span 
+                                  className="inline-flex items-center" 
+                                  title={`En attente depuis ${pensioner.pendingSince} jours`}
+                                >
+                                  <Flame className="w-4 h-4 text-alert-critical animate-pulse" />
+                                </span>
+                              )}
+                              {needsSpecialAttention(pensioner) && (
+                                <span 
+                                  className="inline-flex items-center" 
+                                  title={pensioner.hasDisability ? "Attention particulière requise" : "Âge avancé (> 70 ans)"}
+                                >
+                                  <UserRound className="w-4 h-4 text-alert-urgent" />
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Né le {new Date(pensioner.birthDate).toLocaleDateString("fr-FR")}
                             </p>
-                            {/* Visual indicators */}
-                            {isPendingTooLong(pensioner) && (
-                              <span 
-                                className="inline-flex items-center" 
-                                title={`En attente depuis ${pensioner.pendingSince} jours`}
-                              >
-                                <Flame className="w-4 h-4 text-alert-critical animate-pulse" />
-                              </span>
-                            )}
-                            {needsSpecialAttention(pensioner) && (
-                              <span 
-                                className="inline-flex items-center" 
-                                title={pensioner.hasDisability ? "Attention particulière requise" : "Âge avancé (> 70 ans)"}
-                              >
-                                <UserRound className="w-4 h-4 text-alert-urgent" />
-                              </span>
-                            )}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Né le {new Date(pensioner.birthDate).toLocaleDateString("fr-FR")}
-                          </p>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={cn(
-                        "text-foreground",
-                        pensioner.age > 70 && "font-semibold text-alert-urgent"
-                      )}>
-                        {pensioner.age} ans
-                      </span>
-                    </td>
-                    <td className="font-semibold text-foreground">
-                      {pensioner.amount.toLocaleString()} XOF
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-1.5">
-                        {pensioner.paymentMethod === "mobile" ? (
-                          <Smartphone className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <Building2 className="w-4 h-4 text-muted-foreground" />
-                        )}
-                        <div>
-                          <p className="text-sm text-foreground">
-                            {pensioner.paymentMethod === "mobile" ? "Mobile" : "Banque"}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono truncate max-w-[120px]">
-                            {pensioner.paymentDetails}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex flex-col gap-1">
-                        <span className={cn("status-badge gap-1.5", status.className)}>
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {status.label}
+                      </td>
+                      <td>
+                        <span className={cn(
+                          "text-foreground",
+                          pensioner.age > 70 && "font-semibold text-alert-urgent"
+                        )}>
+                          {pensioner.age} ans
                         </span>
-                        {pensioner.status === "pending" && pensioner.pendingSince && (
-                          <span className="text-xs text-muted-foreground">
-                            Depuis {pensioner.pendingSince}j
+                      </td>
+                      <td className="font-semibold text-foreground">
+                        {pensioner.amount.toLocaleString()} XOF
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-1.5">
+                          {pensioner.paymentMethod === "mobile" ? (
+                            <Smartphone className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                          )}
+                          <div>
+                            <p className="text-sm text-foreground">
+                              {pensioner.paymentMethod === "mobile" ? "Mobile" : "Banque"}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-mono truncate max-w-[120px]">
+                              {pensioner.paymentDetails}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex flex-col gap-1">
+                          <span className={cn("status-badge gap-1.5", status.className)}>
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {status.label}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-popover w-56">
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer"
-                              onClick={() => handleViewProfile(pensioner)}
-                            >
-                              <Eye className="w-4 h-4" /> 
-                              Voir Profil Détaillé
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer"
-                              onClick={() => handleQuickEdit(pensioner)}
-                            >
-                              <Edit className="w-4 h-4" /> 
-                              Modifier Informations Rapides
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="gap-2 cursor-pointer text-alert-warning"
-                              onClick={() => handleSuspendPayment(pensioner)}
-                            >
-                              <PauseCircle className="w-4 h-4" /> 
-                              Suspendre Paiement
-                            </DropdownMenuItem>
-                            {(pensioner.status === "pending" || pensioner.status === "rejected") && (
+                          {pensioner.status === "pending" && pensioner.pendingSince && (
+                            <span className="text-xs text-muted-foreground">
+                              Depuis {pensioner.pendingSince}j
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-popover w-56">
                               <DropdownMenuItem 
                                 className="gap-2 cursor-pointer"
-                                onClick={() => handleResendNotification(pensioner)}
+                                onClick={() => handleViewProfile(pensioner)}
                               >
-                                <Bell className="w-4 h-4" /> 
-                                Renvoyer Notification
+                                <Eye className="w-4 h-4" /> 
+                                Voir Profil Détaillé
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gap-2 cursor-pointer text-destructive">
-                              <Trash2 className="w-4 h-4" /> 
-                              Supprimer
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t">
-          <p className="text-sm text-muted-foreground">
-            Affichage de {filteredPensioners.length} sur {mockPensioners.length} pensionnés
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
-              1
-            </Button>
-            <Button variant="outline" size="sm">
-              2
-            </Button>
-            <Button variant="outline" size="sm">
-              3
-            </Button>
-            <Button variant="outline" size="sm">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer"
+                                onClick={() => handleQuickEdit(pensioner)}
+                              >
+                                <Edit className="w-4 h-4" /> 
+                                Modifier Informations Rapides
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="gap-2 cursor-pointer text-alert-warning"
+                                onClick={() => handleSuspendPayment(pensioner)}
+                              >
+                                <PauseCircle className="w-4 h-4" /> 
+                                Suspendre Paiement
+                              </DropdownMenuItem>
+                              {(pensioner.status === "pending" || pensioner.status === "rejected") && (
+                                <DropdownMenuItem 
+                                  className="gap-2 cursor-pointer"
+                                  onClick={() => handleResendNotification(pensioner)}
+                                >
+                                  <Bell className="w-4 h-4" /> 
+                                  Renvoyer Notification
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="gap-2 cursor-pointer text-destructive">
+                                <Trash2 className="w-4 h-4" /> 
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+
+
+        {/* Pagination (affichée uniquement si des données sont présentes) */}
+        {!isLoading && !error && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <p className="text-sm text-muted-foreground">
+                Affichage de {filteredPensioners.length} sur {pensionersData.length} pensionnés
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
+                  1
+                </Button>
+                {/* Ajoutez ici la logique pour les autres pages si nécessaire */}
+                <Button variant="outline" size="sm" disabled>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+        )}
       </div>
 
       {/* Quick Edit Modal */}

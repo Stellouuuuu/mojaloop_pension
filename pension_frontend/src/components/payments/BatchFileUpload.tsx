@@ -118,15 +118,15 @@ const SelectItem = ({ value, children }) => <option value={value}>{children}</op
 interface UploadedRow {
   id: string;
   // Assurez-vous d'avoir les colonnes nécessaires pour le paiement
-  FromDisplayName?: string | number; 
+  FromDisplayName?: string | number;
   valeur_id?: string | number;
   type_id?: string | number;
   montant?: string | number;
   devise?: string | number;
   Note?: string | number;
-  
+
   [key: string]: string | number | undefined; // Permet d'autres colonnes dynamiques
-  
+
   status: "valid" | "error" | "processing" | "success" | "failed"; // Removed 'pending' and added final states
   statusMessage?: string;
 }
@@ -145,129 +145,129 @@ const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
  * 
  */
 async function generateAndDownloadReceipt(result: any) {
-    const endpoint = "http://127.0.0.1:5000/generate_receipt";
+  const endpoint = "http://192.168.1.108:5000/pdf/generate_receipt";
 
-    // --- 1. Préparation des données pour l'API Flask ---
-    
-    // Le contrôleur Flask attend une structure { success: true, data: { ... transaction data ... } }.
-    // Le contrôleur Flask attend également des champs de nom complets dans 'from' et 'to'.
+  // --- 1. Préparation des données pour l'API Flask ---
 
-    const transactionId = result.homeTransactionId || result.transactionId || 'no-id';
-    
-    // Assurez-vous que les données existent dans le 'result' de la première API
-    const paymentData = result.data || result; // Utilisez 'data' si l'API l'encapsule, sinon utilisez le résultat direct
-    
-    if (!paymentData || paymentData.success === false) {
-        console.warn("Impossible de générer le reçu : données de transaction invalides ou échec.");
-        return;
+  // Le contrôleur Flask attend une structure { success: true, data: { ... transaction data ... } }.
+  // Le contrôleur Flask attend également des champs de nom complets dans 'from' et 'to'.
+
+  const transactionId = result.homeTransactionId || result.transactionId || 'no-id';
+
+  // Assurez-vous que les données existent dans le 'result' de la première API
+  const paymentData = result.data || result; // Utilisez 'data' si l'API l'encapsule, sinon utilisez le résultat direct
+
+  if (!paymentData || paymentData.success === false) {
+    console.warn("Impossible de générer le reçu : données de transaction invalides ou échec.");
+    return;
+  }
+
+  // Reconstruction de la partie 'from' pour assurer la présence de la clé 'name'
+  const senderDataForPDF = {
+    name: paymentData.from.displayName || paymentData.from.name || "Expéditeur Inconnu",
+    idType: paymentData.from.idType,
+    idValue: paymentData.from.idValue,
+  };
+
+  // Reconstruction de la partie 'to' pour assurer la présence de firstName/lastName
+  const receiverDataForPDF = {
+    firstName: paymentData.to.firstName || paymentData.to.name || "Bénéficiaire",
+    middleName: paymentData.to.middleName || "",
+    lastName: paymentData.to.lastName || "",
+    idType: paymentData.to.idType,
+    idValue: paymentData.to.idValue,
+  };
+
+  // Construction de l'objet final que Flask attend
+  const apiResponseToSend = {
+    success: true,
+    data: {
+      homeTransactionId: transactionId,
+      currentState: "COMPLETED",
+      initiatedTimestamp: paymentData.initiatedTimestamp || new Date().toISOString(),
+      completedTimestamp: paymentData.completedTimestamp || new Date().toISOString(),
+
+      from: senderDataForPDF,
+      to: receiverDataForPDF,
+      amount: paymentData.amount || paymentData.montant,
+      currency: paymentData.currency || paymentData.devise,
+      note: paymentData.note || null,
+    }
+  };
+
+  // --- 2. Requête POST vers l'API Flask ---
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Envoi de l'objet préparé
+      body: JSON.stringify(apiResponseToSend)
+    });
+
+    // 3. Vérification de la réponse HTTP
+    if (!response.ok) {
+      const errorText = await response.json().catch(() => response.text());
+      throw new Error(`Erreur HTTP ${response.status}: ${JSON.stringify(errorText)}`);
     }
 
-    // Reconstruction de la partie 'from' pour assurer la présence de la clé 'name'
-    const senderDataForPDF = {
-        name: paymentData.from.displayName || paymentData.from.name || "Expéditeur Inconnu",
-        idType: paymentData.from.idType,
-        idValue: paymentData.from.idValue,
-    };
-
-    // Reconstruction de la partie 'to' pour assurer la présence de firstName/lastName
-    const receiverDataForPDF = {
-        firstName: paymentData.to.firstName || paymentData.to.name || "Bénéficiaire", 
-        middleName: paymentData.to.middleName || "", 
-        lastName: paymentData.to.lastName || "",
-        idType: paymentData.to.idType,
-        idValue: paymentData.to.idValue,
-    };
-    
-    // Construction de l'objet final que Flask attend
-    const apiResponseToSend = {
-        success: true,
-        data: {
-            homeTransactionId: transactionId,
-            currentState: "COMPLETED", 
-            initiatedTimestamp: paymentData.initiatedTimestamp || new Date().toISOString(),
-            completedTimestamp: paymentData.completedTimestamp || new Date().toISOString(),
-            
-            from: senderDataForPDF,
-            to: receiverDataForPDF,
-            amount: paymentData.amount || paymentData.montant,
-            currency: paymentData.currency || paymentData.devise,
-            note: paymentData.note || null,
-        }
-    };
-    
-    // --- 2. Requête POST vers l'API Flask ---
-
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            // Envoi de l'objet préparé
-            body: JSON.stringify(apiResponseToSend) 
-        });
-
-        // 3. Vérification de la réponse HTTP
-        if (!response.ok) {
-            const errorText = await response.json().catch(() => response.text());
-            throw new Error(`Erreur HTTP ${response.status}: ${JSON.stringify(errorText)}`);
-        }
-
-        // 4. Récupération des informations sur le fichier
-        let filename = `recu_transaction_${transactionId}.pdf`; 
-        const disposition = response.headers.get('Content-Disposition');
-        if (disposition && disposition.indexOf('attachment') !== -1) {
-            const filenameMatch = disposition.match(/filename="(.+)"/i);
-            if (filenameMatch && filenameMatch.length > 1) {
-                filename = filenameMatch[1];
-            }
-        }
-
-        // 5. Téléchargement
-        const pdfBlob = await response.blob();
-        const url = window.URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-
-        console.log(`✅ Fichier PDF téléchargé avec succès : ${filename}`);
-
-    } catch (error) {
-        console.error("❌ Échec de la génération ou du téléchargement du PDF :", error);
-        alert(`Impossible de générer le reçu. Détails : ${error.message}`);
+    // 4. Récupération des informations sur le fichier
+    let filename = `recu_transaction_${transactionId}.pdf`;
+    const disposition = response.headers.get('Content-Disposition');
+    if (disposition && disposition.indexOf('attachment') !== -1) {
+      const filenameMatch = disposition.match(/filename="(.+)"/i);
+      if (filenameMatch && filenameMatch.length > 1) {
+        filename = filenameMatch[1];
+      }
     }
+
+    // 5. Téléchargement
+    const pdfBlob = await response.blob();
+    const url = window.URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    console.log(`✅ Fichier PDF téléchargé avec succès : ${filename}`);
+
+  } catch (error) {
+    console.error("❌ Échec de la génération ou du téléchargement du PDF :", error);
+    alert(`Impossible de générer le reçu. Détails : ${error.message}`);
+  }
 }
 const simulateBatchPaymentAPI = async (paymentData: any): Promise<any> => {
-    
-    try {
-        const response = await fetch(`${PAYMENT_API_BASE_URL}${PAYMENT_API_ENDPOINT}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(paymentData),
-        });
 
-        if (!response.ok) {
-            throw new Error('Erreur réseau');
-        }
+  try {
+    const response = await fetch(`${PAYMENT_API_BASE_URL}${PAYMENT_API_ENDPOINT}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(paymentData),
+    });
 
-        const result = await response.json();
-        
-        // Appel de la fonction définie à l'extérieur
-        generateAndDownloadReceipt(result); 
-        
-        return result;
-
-    } catch (error) {
-        return { success: false, transactionId: '', message: error.message || "Erreur de la couche réseau", errorCode: "NETWORK_ERROR" };
+    if (!response.ok) {
+      throw new Error('Erreur réseau');
     }
-    
+
+    const result = await response.json();
+
+    // Appel de la fonction définie à l'extérieur
+    generateAndDownloadReceipt(result);
+
+    return result;
+
+  } catch (error) {
+    return { success: false, transactionId: '', message: error.message || "Erreur de la couche réseau", errorCode: "NETWORK_ERROR" };
+  }
+
 };
 
 
@@ -282,7 +282,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [searchQuery, setSearchQuery] = useState("");
   // Filter can now include 'success' and 'failed'
-  const [statusFilter, setStatusFilter] = useState<string>("all"); 
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Payment process states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -309,19 +309,19 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
 
   const validateRow = (row: Record<string, string | number>): { isValid: boolean, message: string } => {
     const missingFields = REQUIRED_FIELDS.filter(field => !row[field] || String(row[field]).trim() === "");
-    
+
     if (missingFields.length > 0) {
-      return { 
-        isValid: false, 
-        message: `Champs manquants: ${missingFields.join(", ")}` 
+      return {
+        isValid: false,
+        message: `Champs manquants: ${missingFields.join(", ")}`
       };
     }
-    
+
     // Basic format validation (example: montant must be a valid number string)
     if (isNaN(Number(row.montant))) {
-      return { 
-        isValid: false, 
-        message: "Montant (montant) invalide." 
+      return {
+        isValid: false,
+        message: "Montant (montant) invalide."
       };
     }
 
@@ -331,8 +331,8 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
   const processFile = useCallback(async (file: File) => {
     setIsLoading(true);
     setError(null);
-    setPaymentStatus("idle"); 
-    
+    setPaymentStatus("idle");
+
     // Reset data to prevent mixing files
     setData([]);
     setColumns([]);
@@ -370,7 +370,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
         setIsLoading(false);
         return;
       }
-      
+
       const cols = Object.keys(jsonData[0]).filter(
         (col) => col !== "status" && col !== "statusMessage" && col !== "id"
       );
@@ -426,12 +426,35 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
         setFile(selectedFile);
+
+        // 1. On garde ton comportement actuel : lecture + affichage du tableau
         processFile(selectedFile);
+
+        // 2. NOUVEL AJOUT : Envoi du fichier brut au backend
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        fetch("http://192.168.1.108:5000/csv/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error("Échec envoi au serveur");
+            return res.json();
+          })
+          .then((data) => {
+            console.log("Fichier envoyé avec succès au backend :", data);
+            // Optionnel : tu peux afficher un toast ici plus tard
+          })
+          .catch((err) => {
+            console.error("Erreur envoi fichier au backend :", err);
+            // Ne bloque pas l'UI → l'utilisateur voit quand même son tableau
+          });
       }
     },
-    [processFile]
+    [processFile] // dépendance correcte
   );
-  
+
   const handleRemoveFile = useCallback(() => {
     setFile(null);
     setData([]);
@@ -444,7 +467,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
     setSearchQuery("");
     setStatusFilter("all");
   }, []);
-  
+
   // CORE LOGIC CHANGE: Sequential processing and status update with API call
   const handleLaunchPayment = useCallback(async () => {
     // Ne considérer que les lignes qui n'ont pas d'erreur de données et qui ne sont pas déjà traitées
@@ -460,67 +483,67 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
     let failedCount = 0;
 
     for (let i = 0; i < rowsToProcess.length; i++) {
-        const row = rowsToProcess[i];
-        
-        // 1. Update status to 'processing'
-        updateRowStatus(row.id, "processing", "Soumission du paiement à l'API...");
-        
-        // Construire l'objet de requête API
-        const paymentPayload: PaymentRequest = {
-            from: { 
-                displayName:"John Doe", 
-                idType: "MSISDN", // Simplification: assume MSISDN for sender
-                idValue: "22912345678"// MSISDN or other ID
-            },
-            to: { 
-                idType: String(row.type_id), // Simplification: assume MSISDN for receiver
-                idValue: String(row.valeur_id) 
-            },
-            amount: String(row.montant),
-            currency: String(row.devise || "USD"),
-            note: 'test',
+      const row = rowsToProcess[i];
+
+      // 1. Update status to 'processing'
+      updateRowStatus(row.id, "processing", "Soumission du paiement à l'API...");
+
+      // Construire l'objet de requête API
+      const paymentPayload: PaymentRequest = {
+        from: {
+          displayName: "John Doe",
+          idType: "MSISDN", // Simplification: assume MSISDN for sender
+          idValue: "22912345678"// MSISDN or other ID
+        },
+        to: {
+          idType: String(row.type_id), // Simplification: assume MSISDN for receiver
+          idValue: String(row.valeur_id)
+        },
+        amount: String(row.montant),
+        currency: String(row.devise || "USD"),
+        note: 'test',
+      };
+
+      let result: PaymentResponse;
+
+      try {
+        // 2. Appel de l'API simulée
+        // Ajout d'un délai pour simuler une transaction réseau
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 500));
+
+        result = await simulateBatchPaymentAPI(paymentPayload);
+
+      } catch (err) {
+        // Échec réseau ou erreur inattendue
+        result = {
+          success: false,
+          transactionId: '',
+          message: `Erreur inattendue: ${err instanceof Error ? err.message : "Inconnue"}`,
+          errorCode: "CLIENT_ERROR"
         };
+      }
 
-        let result: PaymentResponse;
-        
-        try {
-            // 2. Appel de l'API simulée
-            // Ajout d'un délai pour simuler une transaction réseau
-            await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 500)); 
-            
-            result = await simulateBatchPaymentAPI(paymentPayload);
+      // 3. Traiter la réponse et mettre à jour le statut
+      const newStatus: UploadedRow['status'] = result.success ? "success" : "failed";
+      const message = result.success
+        ? `Paiement réussi (Réf: ${result.transactionId})`
+        : `Échec: ${result.message} (Code: ${result.errorCode || 'N/A'})`;
 
-        } catch (err) {
-            // Échec réseau ou erreur inattendue
-            result = {
-                success: false,
-                transactionId: '',
-                message: `Erreur inattendue: ${err instanceof Error ? err.message : "Inconnue"}`,
-                errorCode: "CLIENT_ERROR"
-            };
-        }
-        
-        // 3. Traiter la réponse et mettre à jour le statut
-        const newStatus: UploadedRow['status'] = result.success ? "success" : "failed";
-        const message = result.success 
-            ? `Paiement réussi (Réf: ${result.transactionId})` 
-            : `Échec: ${result.message} (Code: ${result.errorCode || 'N/A'})`;
-        
-        if (!result.success) {
-          failedCount++;
-        }
+      if (!result.success) {
+        failedCount++;
+      }
 
-        // 4. Update to final status
-        updateRowStatus(row.id, newStatus, message);
+      // 4. Update to final status
+      updateRowStatus(row.id, newStatus, message);
 
-        // Update overall progress bar
-        const progress = ((i + 1) / rowsToProcess.length) * 100;
-        setPaymentProgress(progress);
+      // Update overall progress bar
+      const progress = ((i + 1) / rowsToProcess.length) * 100;
+      setPaymentProgress(progress);
     }
 
     // Final status update
     setIsProcessing(false);
-    setPaymentStatus(failedCount > 0 ? "failed" : "completed"); 
+    setPaymentStatus(failedCount > 0 ? "failed" : "completed");
   }, [data, isProcessing, updateRowStatus]);
 
   // Filtered and paginated data (inchangé)
@@ -544,7 +567,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
     }
     return filtered;
   }, [data, searchQuery, statusFilter]);
-  
+
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -612,7 +635,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
               <span>Formats supportés: .csv, .xlsx, .xls</span>
             </div>
             <p className="text-xs text-indigo-500 mt-2 font-medium">
-                Champs requis : **valeur_id, type_id, montant, devise**
+              Champs requis : **valeur_id, type_id, montant, devise**
             </p>
           </div>
         </div>
@@ -659,70 +682,70 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                  {/* Initial Validation Status */}
-                  <Badge className="bg-green-100 text-green-700 font-semibold">
-                      <CheckCircle className="w-3 h-3 mr-1" /> {validCount.toLocaleString()} Prêts
+                {/* Initial Validation Status */}
+                <Badge className="bg-green-100 text-green-700 font-semibold">
+                  <CheckCircle className="w-3 h-3 mr-1" /> {validCount.toLocaleString()} Prêts
+                </Badge>
+                {initialErrorCount > 0 && (
+                  <Badge variant="destructive" className="bg-red-100 text-red-700 font-semibold">
+                    <AlertTriangle className="w-3 h-3 mr-1" /> {initialErrorCount.toLocaleString()} Erreurs Données
                   </Badge>
-                  {initialErrorCount > 0 && (
-                      <Badge variant="destructive" className="bg-red-100 text-red-700 font-semibold">
-                          <AlertTriangle className="w-3 h-3 mr-1" /> {initialErrorCount.toLocaleString()} Erreurs Données
-                      </Badge>
-                  )}
+                )}
 
-                  {/* Payment Status (if processing started) */}
-                  {totalProcessed > 0 && (
-                      <Badge className="bg-gray-100 text-gray-700 font-semibold">
-                          {successCount.toLocaleString()} Succès / {paymentFailedCount.toLocaleString()} Échecs
-                      </Badge>
-                  )}
+                {/* Payment Status (if processing started) */}
+                {totalProcessed > 0 && (
+                  <Badge className="bg-gray-100 text-gray-700 font-semibold">
+                    {successCount.toLocaleString()} Succès / {paymentFailedCount.toLocaleString()} Échecs
+                  </Badge>
+                )}
               </div>
 
             </div>
           </div>
-          
+
           {/* Action Buttons & Status */}
           <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm space-y-4">
-            
+
             {/* Status Display */}
             <div className="space-y-2">
-                <div className="flex items-center gap-3 text-sm font-medium">
-                    <Clock className="w-5 h-5 text-indigo-600" />
-                    <span className="text-gray-700">Statut de la Tâche:</span>
-                    <Badge className={cn("capitalize font-semibold", currentPaymentStatus.color)}>
-                        {currentPaymentStatus.label}
-                    </Badge>
-                    {isProcessing && (
-                      <span className="text-sm font-normal text-gray-500 ml-auto">
-                        Traitement de {totalProcessed} sur {totalToProcess} lignes...
-                      </span>
-                    )}
-                </div>
+              <div className="flex items-center gap-3 text-sm font-medium">
+                <Clock className="w-5 h-5 text-indigo-600" />
+                <span className="text-gray-700">Statut de la Tâche:</span>
+                <Badge className={cn("capitalize font-semibold", currentPaymentStatus.color)}>
+                  {currentPaymentStatus.label}
+                </Badge>
+                {isProcessing && (
+                  <span className="text-sm font-normal text-gray-500 ml-auto">
+                    Traitement de {totalProcessed} sur {totalToProcess} lignes...
+                  </span>
+                )}
+              </div>
 
-                {(paymentStatus === "in_progress" || paymentStatus === "completed" || paymentStatus === "failed") && (
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                            className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                            style={{ width: `${paymentProgress}%` }}
-                        ></div>
-                    </div>
-                )}
-                {paymentStatus === "completed" && (
-                    <p className="text-sm text-green-700 font-medium">
-                        <CheckCircle className="w-4 h-4 inline mr-1" /> {successCount.toLocaleString()} paiements traités avec succès.
-                    </p>
-                )}
-                {paymentStatus === "failed" && (
-                    <p className="text-sm text-red-700 font-medium">
-                        <AlertTriangle className="w-4 h-4 inline mr-1" /> Tâche terminée. **{paymentFailedCount.toLocaleString()}** paiements ont échoué.
-                    </p>
-                )}
+              {(paymentStatus === "in_progress" || paymentStatus === "completed" || paymentStatus === "failed") && (
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div
+                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${paymentProgress}%` }}
+                  ></div>
+                </div>
+              )}
+              {paymentStatus === "completed" && (
+                <p className="text-sm text-green-700 font-medium">
+                  <CheckCircle className="w-4 h-4 inline mr-1" /> {successCount.toLocaleString()} paiements traités avec succès.
+                </p>
+              )}
+              {paymentStatus === "failed" && (
+                <p className="text-sm text-red-700 font-medium">
+                  <AlertTriangle className="w-4 h-4 inline mr-1" /> Tâche terminée. **{paymentFailedCount.toLocaleString()}** paiements ont échoué.
+                </p>
+              )}
             </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3 justify-end pt-2 border-t border-indigo-100">
               <Button
                 variant="outline"
-                onClick={handleRemoveFile} 
+                onClick={handleRemoveFile}
                 disabled={isProcessing}
                 className="hover:bg-red-100 text-red-600 border-red-300"
               >
@@ -757,9 +780,9 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
                 disabled={isProcessing}
               />
             </div>
-            <Select 
-              value={statusFilter} 
-              onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }} 
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
               disabled={isProcessing}
             >
               <SelectTrigger className="w-[180px]">
@@ -787,64 +810,64 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
               </SelectContent>
             </Select>
           </div>
-          
+
           {/* Data Table */}
           <div className="bg-white border rounded-xl overflow-hidden shadow-lg">
             {filteredData.length === 0 ? (
-                <div className="text-center p-12 text-gray-500">
-                    Aucune ligne trouvée pour les filtres actuels.
-                </div>
+              <div className="text-center p-12 text-gray-500">
+                Aucune ligne trouvée pour les filtres actuels.
+              </div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                        <thead className="bg-gray-100/70 sticky top-0">
-                            <tr>
-                                <th className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[50px]">#</th>
-                                {columns.map((col) => (
-                                    <th key={col} className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase min-w-[150px]">
-                                        {col}
-                                    </th>
-                                ))}
-                                <th className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[150px]">Statut</th>
-                                <th className="text-center py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[100px]">Détails</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedData.map((row, idx) => {
-                                const status = statusConfig[row.status];
-                                const StatusIcon = status.icon;
-                                const rowNumber = (currentPage - 1) * rowsPerPage + idx + 1;
-                                return (
-                                    <tr key={row.id} className="border-b last:border-b-0 hover:bg-indigo-50/50 transition-colors">
-                                        <td className="py-3 px-4 text-sm text-gray-500">{rowNumber}</td>
-                                        {columns.map((col) => (
-                                            <td key={col} className="py-3 px-4 text-sm text-gray-800 max-w-[200px] truncate">
-                                                {String(row[col] ?? "")}
-                                            </td>
-                                        ))}
-                                        <td className="py-3 px-4">
-                                            <span 
-                                                className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap", row.status === 'processing' ? 'text-blue-600 bg-blue-100' : status.className)}
-                                            >
-                                                <StatusIcon className={cn("w-3.5 h-3.5", row.status === 'processing' && 'animate-spin')} />
-                                                {status.label}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <div className="flex justify-center gap-2">
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-indigo-500 hover:bg-indigo-100" title={row.statusMessage}>
-                                                    <Eye className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-100/70 sticky top-0">
+                    <tr>
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[50px]">#</th>
+                      {columns.map((col) => (
+                        <th key={col} className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase min-w-[150px]">
+                          {col}
+                        </th>
+                      ))}
+                      <th className="text-left py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[150px]">Statut</th>
+                      <th className="text-center py-3 px-4 text-xs font-bold text-gray-600 uppercase w-[100px]">Détails</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedData.map((row, idx) => {
+                      const status = statusConfig[row.status];
+                      const StatusIcon = status.icon;
+                      const rowNumber = (currentPage - 1) * rowsPerPage + idx + 1;
+                      return (
+                        <tr key={row.id} className="border-b last:border-b-0 hover:bg-indigo-50/50 transition-colors">
+                          <td className="py-3 px-4 text-sm text-gray-500">{rowNumber}</td>
+                          {columns.map((col) => (
+                            <td key={col} className="py-3 px-4 text-sm text-gray-800 max-w-[200px] truncate">
+                              {String(row[col] ?? "")}
+                            </td>
+                          ))}
+                          <td className="py-3 px-4">
+                            <span
+                              className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap", row.status === 'processing' ? 'text-blue-600 bg-blue-100' : status.className)}
+                            >
+                              <StatusIcon className={cn("w-3.5 h-3.5", row.status === 'processing' && 'animate-spin')} />
+                              {status.label}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex justify-center gap-2">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-indigo-500 hover:bg-indigo-100" title={row.statusMessage}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-            
+
             {/* Pagination */}
             <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 rounded-b-xl">
               <div className="text-sm text-gray-600">
@@ -862,28 +885,28 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Précédent
                 </Button>
-                
+
                 <div className="flex items-center gap-1">
-                    {/* Simplified Pagination rendering */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter(p => p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2))
-                      .map((pageNum, index, arr) => {
-                          const showEllipsis = index > 0 && pageNum > arr[index - 1] + 1;
-                          return (
-                              <div key={pageNum} className="flex items-center gap-1">
-                                  {showEllipsis && <span className="text-gray-400">...</span>}
-                                  <Button
-                                      variant={currentPage === pageNum ? "default" : "ghost"}
-                                      size="sm"
-                                      className="w-8 h-8 p-0"
-                                      onClick={() => setCurrentPage(pageNum)}
-                                      disabled={isProcessing}
-                                  >
-                                      {pageNum}
-                                  </Button>
-                              </div>
-                          );
-                      })}
+                  {/* Simplified Pagination rendering */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2))
+                    .map((pageNum, index, arr) => {
+                      const showEllipsis = index > 0 && pageNum > arr[index - 1] + 1;
+                      return (
+                        <div key={pageNum} className="flex items-center gap-1">
+                          {showEllipsis && <span className="text-gray-400">...</span>}
+                          <Button
+                            variant={currentPage === pageNum ? "default" : "ghost"}
+                            size="sm"
+                            className="w-8 h-8 p-0"
+                            onClick={() => setCurrentPage(pageNum)}
+                            disabled={isProcessing}
+                          >
+                            {pageNum}
+                          </Button>
+                        </div>
+                      );
+                    })}
                 </div>
                 <Button
                   variant="outline"
