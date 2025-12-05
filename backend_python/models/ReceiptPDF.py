@@ -1,7 +1,6 @@
 from fpdf import FPDF, XPos, YPos
 from datetime import datetime
 
-
 class ReceiptPDF(FPDF):
     def __init__(self, data):
         super().__init__()
@@ -10,7 +9,7 @@ class ReceiptPDF(FPDF):
         self.currency = data.get("currency", "XOF")
         self.transaction_id = data.get("homeTransactionId", "N/A")
         self.status = data.get("currentState", "N/A")
-        self.note = data.get("note") if data.get("note") else "Aucune note"
+        self.note = data.get("note") or "Aucune note"
         self.receiver_name = self._get_receiver_name()
         self.date_payment = self._format_date_fr(data.get("completedTimestamp", data.get("initiatedTimestamp")))
 
@@ -28,17 +27,15 @@ class ReceiptPDF(FPDF):
             dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
             return dt.strftime("%d %B %Y à %H:%M:%S")
         except ValueError:
-            return iso_str # Retourne la chaîne brute si le formatage échoue
+            return iso_str
 
     def header(self):
         self.set_fill_color(30, 65, 135)
         self.rect(0, 0, 210, 35, 'F')
-        
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "B", 24)
         self.ln(5)
         self.cell(0, 8, "REÇU DE PAIEMENT", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
-        
         self.set_font("Helvetica", "", 12)
         self.ln(5)
 
@@ -46,7 +43,6 @@ class ReceiptPDF(FPDF):
         self.set_y(-25)
         self.set_fill_color(30, 65, 135)
         self.rect(0, 272, 210, 25, 'F')
-        
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "I", 10)
         self.cell(0, 8, "Merci pour votre confiance !", 0, 1, "C")
@@ -63,7 +59,6 @@ class ReceiptPDF(FPDF):
         self.set_font("Helvetica", "B" if label_bold else "", 12)
         self.set_text_color(80, 80, 80)
         self.cell(60, 8, label)
-        
         self.set_font("Helvetica", "", 12)
         self.set_text_color(0, 0, 0)
         self.cell(0, 8, value, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -74,12 +69,10 @@ class ReceiptPDF(FPDF):
         self.set_draw_color(34, 139, 34)
         self.set_line_width(2)
         self.rect(35, self.get_y(), 140, 40, 'DF')
-        
         self.set_text_color(34, 139, 34)
         self.set_font("Helvetica", "", 12)
         self.set_xy(40, self.get_y() + 5)
         self.cell(130, 8, "Montant transféré", align="C")
-        
         self.set_font("Helvetica", "B", 32)
         self.set_text_color(22, 101, 52)
         self.ln(8)
@@ -87,33 +80,28 @@ class ReceiptPDF(FPDF):
         self.ln(15)
 
     def generate(self):
-        # Création du PDF
         self.add_page()
         self.set_auto_page_break(auto=True, margin=15)
-
-        # Statut en gros (sous l'en-tête)
+        
+        # Statut
         self.set_font("Helvetica", "B", 16)
         self.set_text_color(34, 139, 34)
         self.cell(0, 10, "PAIEMENT RÉUSSI", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
         self.ln(5)
 
-        # Bloc montant
         self.add_amount_block()
 
-        # Détails du transfert
         self.add_section_title("Détails de la transaction")
         self.add_info_line("Référence transaction :", self.transaction_id)
-        self.add_info_line("Statut :", self.status, label_bold=True)
+        self.add_info_line("Statut :", self.status)
         self.add_info_line("Date et heure :", self.date_payment)
         self.ln(4)
 
-        # Expéditeur
         self.add_section_title("Expéditeur")
         self.add_info_line("Nom :", self.data["from"]["name"])
         self.add_info_line("Numéro/ID :", self.data["from"]["idValue"])
         self.ln(4)
 
-        # Bénéficiaire
         self.add_section_title("Bénéficiaire")
         self.add_info_line("Nom complet :", self.receiver_name)
         self.add_info_line("ID bénéficiaire :", self.data["to"]["idValue"])
@@ -123,5 +111,4 @@ class ReceiptPDF(FPDF):
             self.add_section_title("Note")
             self.add_info_line("Message :", self.note)
 
-        # Retourne le PDF sous forme de BytesIO
-        return self.output(dest='S').encode('latin1')
+        return self.output(dest='S').encode('latin1')  # <-- à remplacer

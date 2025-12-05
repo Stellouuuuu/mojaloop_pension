@@ -6,7 +6,7 @@ from controllers.csv_to_json_controller import CsvToJsonController
 
 routes = Blueprint("routes", __name__)
 
-@routes.route('/pdf/generate-receipt', methods=['POST'])
+@routes.route('/pdf/generate_receipt', methods=['POST'])
 def generate_pdf_receipt():
     return PdfController.generate_receipt()
 

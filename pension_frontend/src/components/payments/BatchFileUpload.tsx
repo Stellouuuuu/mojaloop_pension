@@ -17,8 +17,8 @@ import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import generatePDF from "../layout/generatePDF";
 // --- Configuration API ---
-const PAYMENT_API_BASE_URL = "http://192.168.1.108:3001";
-const PAYMENT_API_ENDPOINT = "/payments/batch";
+const PAYMENT_API_BASE_URL = "http://localhost:3001";
+const PAYMENT_API_ENDPOINT = "/api/payments/batch";
 
 // --- Définitions de types pour l'API ---
 interface PaymentParty {
@@ -145,7 +145,7 @@ const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200, 500];
  * 
  */
 async function generateAndDownloadReceipt(result: any) {
-  const endpoint = "http://192.168.1.108:5000/pdf/generate_receipt";
+  const endpoint = "http://localhost:5001/pdf/generate_receipt";
 
   // --- 1. Préparation des données pour l'API Flask ---
 
@@ -434,7 +434,7 @@ export default function BatchFileUpload({ onDataLoaded }: BatchFileUploadProps) 
         const formData = new FormData();
         formData.append("file", selectedFile);
 
-        fetch("http://192.168.1.108:5000/csv/upload", {
+        fetch("http://localhost:5000/csv/upload", {
           method: "POST",
           body: formData,
         })

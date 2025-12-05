@@ -1,0 +1,99 @@
+{
+    "success": true,
+    "data": {
+        "from": {
+            "name": "John Doe",
+            "idType": "MSISDN",
+            "idValue": "22912345678"
+        },
+        "to": {
+            "idType": "PERSONAL_ID",
+            "idValue": "5803867225",
+            "fspId": "testingtoolkitdfsp",
+            "extensionList": [
+                {
+                    "ad_9": 40881851.32036376,
+                    "incididunt_fc": 27825312,
+                    "proident7": "cupidatat qui in",
+                    "qui_c8": 6437822,
+                    "key": "sint in e",
+                    "value": "dolore laboris"
+                },
+                {
+                    "sed_70": 6734564.046872273,
+                    "est3bc": true,
+                    "veniam3": -69361641.59199391,
+                    "officia917": false,
+                    "key": "fugiat ut a",
+                    "value": "commodo dolore incididunt ad"
+                }
+            ],
+            "firstName": "Paul",
+            "middleName": "S",
+            "lastName": "Gonzalez",
+            "dateOfBirth": "1902-08-26"
+        },
+        "amountType": "SEND",
+        "currency": "XOF",
+        "amount": "5000",
+        "transactionType": "TRANSFER",
+        "note": "test",
+        "homeTransactionId": "07f6146b-6b22-44d0-a064-fd0bd832a631",
+        "transferId": "37509994-9a22-4461-8870-02ac4974bb37",
+        "currentState": "COMPLETED",
+        "initiatedTimestamp": "2025-12-05T11:24:32.144Z",
+        "quoteId": "21e58a1b-3256-4b97-b6e6-9716d3d78b9b",
+        "quoteResponse": {
+            "transferAmount": {
+                "currency": "XOF",
+                "amount": "5000"
+            },
+            "payeeReceiveAmount": {
+                "commodoa30": "pariatur",
+                "irure8": -88603967.69347298,
+                "currency": "XOF",
+                "amount": "5000"
+            },
+            "payeeFspFee": {
+                "currency": "XOF",
+                "amount": "0.2"
+            },
+            "payeeFspCommission": {
+                "currency": "XOF",
+                "amount": "0.3"
+            },
+            "expiration": "2025-12-06T11:24:38.417Z",
+            "geoCode": {
+                "veniam_": false,
+                "fugiat5d9": false,
+                "tempord": "eiusmod",
+                "voluptate_170": 99717658.82164139,
+                "ullamco1b5": true,
+                "latitude": "+0.2656",
+                "longitude": "170"
+            },
+            "ilpPacket": "AYIFFwAAAAAAABOIK2cudGVzdGluZ3Rvb2xraXRkZnNwLnBlcnNvbmFsX2lkLjU4MDM4NjcyMjWCBN9leUowY21GdWMyRmpkR2x2Ymtsa0lqb2lNemMxTURrNU9UUXRPV0V5TWkwME5EWXhMVGc0TnpBdE1ESmhZelE1TnpSaVlqTTNJaXdpY1hWdmRHVkpaQ0k2SWpJeFpUVTRZVEZpTFRNeU5UWXROR0k1TnkxaU5tVTJMVGszTVRaa00yUTNPR0k1WWlJc0luQmhlV1ZsSWpwN0luQmhjblI1U1dSSmJtWnZJanA3SW5CaGNuUjVTV1JVZVhCbElqb2lVRVZTVTA5T1FVeGZTVVFpTENKd1lYSjBlVWxrWlc1MGFXWnBaWElpT2lJMU9EQXpPRFkzTWpJMUlpd2labk53U1dRaU9pSjBaWE4wYVc1bmRHOXZiR3RwZEdSbWMzQWlMQ0psZUhSbGJuTnBiMjVNYVhOMElqcDdJbVY0ZEdWdWMybHZiaUk2VzNzaVlXUmZPU0k2TkRBNE9ERTROVEV1TXpJd016WXpOellzSW1sdVkybGthV1IxYm5SZlptTWlPakkzT0RJMU16RXlMQ0p3Y205cFpHVnVkRGNpT2lKamRYQnBaR0YwWVhRZ2NYVnBJR2x1SWl3aWNYVnBYMk00SWpvMk5ETTNPREl5TENKclpYa2lPaUp6YVc1MElHbHVJR1VpTENKMllXeDFaU0k2SW1SdmJHOXlaU0JzWVdKdmNtbHpJbjBzZXlKelpXUmZOekFpT2pZM016UTFOalF1TURRMk9EY3lNamN6TENKbGMzUXpZbU1pT25SeWRXVXNJblpsYm1saGJUTWlPaTAyT1RNMk1UWTBNUzQxT1RFNU9UTTVNU3dpYjJabWFXTnBZVGt4TnlJNlptRnNjMlVzSW10bGVTSTZJbVoxWjJsaGRDQjFkQ0JoSWl3aWRtRnNkV1VpT2lKamIyMXRiMlJ2SUdSdmJHOXlaU0JwYm1OcFpHbGtkVzUwSUdGa0luMWRmWDBzSW5CbGNuTnZibUZzU1c1bWJ5STZleUpqYjIxd2JHVjRUbUZ0WlNJNmV5Sm1hWEp6ZEU1aGJXVWlPaUpRWVhWc0lpd2liV2xrWkd4bFRtRnRaU0k2SWxNaUxDSnNZWE4wVG1GdFpTSTZJa2R2Ym5waGJHVjZJbjBzSW1SaGRHVlBaa0pwY25Sb0lqb2lNVGt3TWkwd09DMHlOaUo5ZlN3aWNHRjVaWElpT25zaWNHRnlkSGxKWkVsdVptOGlPbnNpY0dGeWRIbEpaRlI1Y0dVaU9pSk5VMGxUUkU0aUxDSndZWEowZVVsa1pXNTBhV1pwWlhJaU9pSXlNamt4TWpNME5UWTNPQ0lzSW1aemNFbGtJam9pZFhObGNtUm1jM0FpZlgwc0ltRnRiM1Z1ZENJNmV5SmpkWEp5Wlc1amVTSTZJbGhQUmlJc0ltRnRiM1Z1ZENJNklqVXdNREFpZlN3aWRISmhibk5oWTNScGIyNVVlWEJsSWpwN0luTmpaVzVoY21sdklqb2lWRkpCVGxOR1JWSWlMQ0pwYm1sMGFXRjBiM0lpT2lKUVFWbEZVaUlzSW1sdWFYUnBZWFJ2Y2xSNWNHVWlPaUpEVDA1VFZVMUZVaUo5TENKbGVIQnBjbUYwYVc5dUlqb2lNakF5TlMweE1pMHdObFF4TVRveU5Eb3pPQzQwTVRkYUluMAA",
+            "condition": "LM9GDpeo4VyF9GyTNlK9Q0CWiifQCauQ6YmUr6QbYaM"
+        },
+        "quoteResponseSource": "testingtoolkitdfsp",
+        "fulfil": {
+            "fulfilment": "b2mmArJsIBEnVOVMl_j1EyTM7csHKYakFyt155OdNmw",
+            "completedTimestamp": "2025-12-05T11:24:41.920Z",
+            "transferState": "COMMITTED"
+        }
+    },
+    "payment": {
+        "from": {
+            "displayName": "John Doe",
+            "idType": "MSISDN",
+            "idValue": "22912345678"
+        },
+        "to": {
+            "idType": "PERSONAL_ID",
+            "idValue": "5803867225"
+        },
+        "amount": "5000",
+        "currency": "XOF",
+        "note": "test"
+    }
+}
