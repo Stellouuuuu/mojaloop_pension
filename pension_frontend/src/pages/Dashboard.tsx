@@ -6,8 +6,17 @@ import { RecentPayments } from "@/components/dashboard/RecentPayments";
 import { MotivationalBanner } from "@/components/dashboard/MotivationalBanner";
 import { LazySection } from "@/components/ui/lazy-section";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/api/api";
 
 // Sample sparkline data (7 days trend)
+interface DashboardKPIs {
+  activePensioners: number;
+  paidThisMonth: number;
+  successRate: number;
+  errors: number;
+}
+
 const sparklineData = {
   pensioners: [105200, 106100, 106800, 107200, 107800, 108100, 108542],
   payments: [7.8, 7.9, 8.0, 8.0, 8.1, 8.15, 8.2],
@@ -41,6 +50,19 @@ const AlertsSkeleton = () => (
 );
 
 export default function Dashboard() {
+  const { data, isLoading, error } = useQuery<DashboardKPIs, Error>({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      const res = await api.get("/dashboard/kpis");
+      return res.data;
+    },
+  });
+
+  if (isLoading) return <p>Chargement...</p>;
+  if (error) return <p>Erreur: {(error as Error).message}</p>;
+
+  if (!data) return <p>Aucune donnée disponible</p>;
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Page Title */}
@@ -55,43 +77,29 @@ export default function Dashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
-          title="Pensionnés Actifs"
-          value="108,542"
-          numericValue={108542}
-          subtitle="Bénéficiaires enregistrés"
-          icon={Users}
-          trend={{ value: 2.4, isPositive: true }}
-          sparklineData={sparklineData.pensioners}
-          variant="success"
-        />
-        <KPICard
-          title="Payé ce Mois"
-          value="8.2 Mrd"
-          subtitle="XOF distribués"
-          icon={Banknote}
-          trend={{ value: 5.1, isPositive: true }}
-          sparklineData={sparklineData.payments}
-          variant="default"
-        />
-        <KPICard
-          title="Taux de Succès"
-          value="97.8%"
-          subtitle="Paiements réussis"
-          icon={CheckCircle}
-          trend={{ value: 0.3, isPositive: true }}
-          sparklineData={sparklineData.successRate}
-          variant="success"
-        />
-        <KPICard
-          title="Erreurs à Traiter"
-          value="23"
-          numericValue={23}
-          subtitle="Nécessitent attention"
-          icon={AlertTriangle}
-          trend={{ value: 12, isPositive: false }}
-          sparklineData={sparklineData.errors}
-          variant="danger"
-        />
+        title="Pensionnés Actifs"
+        value={data.activePensioners.toLocaleString()}
+        icon={Users}
+        variant="success"
+      />
+      <KPICard
+        title="Payé ce Mois"
+        value={`${data.paidThisMonth.toLocaleString()} XOF`}
+        icon={Banknote}
+        variant="default"
+      />
+      <KPICard
+        title="Taux de Succès"
+        value={`${data.successRate}%`}
+        icon={CheckCircle}
+        variant="success"
+      />
+      <KPICard
+        title="Erreurs à Traiter"
+        value={data.errors}
+        icon={AlertTriangle}
+        variant="danger"
+      />
       </div>
 
       {/* Main Content Grid - Lazy Loaded */}
