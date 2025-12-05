@@ -37,3 +37,15 @@ export const suspendPensionerPayment = (id) =>
 // Renvoyer une notification à un pensionné
 export const resendPensionerNotification = (id) =>
   api.post(`/pensioners/${id}/notify`).then(res => res.data);
+
+// Récupérer un batch par ID (avec URL PDF)
+export const getBatchById = (batchId) =>
+  api.get(`/batch/${batchId}`).then(res => res.data);
+
+// Upload d’un batch
+export const uploadBatch = (payments) =>
+  api.post("/payments/upload-batch", { payments }).then(res => res.data);
+
+// Traiter un batch
+export const processBatch = (batchId) =>
+  api.post(`/payments/process-batch/${batchId}`).then(res => res.data);

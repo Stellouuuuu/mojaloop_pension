@@ -8,6 +8,8 @@ import { LazySection } from "@/components/ui/lazy-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/api/api";
+import { getDashboardKPIs } from "@/api/api";
+
 
 // Sample sparkline data (7 days trend)
 interface DashboardKPIs {
